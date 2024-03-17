@@ -52,3 +52,13 @@ int min(int a, int b){
     int a_min = a < b;
     return (a * a_min) + (b * !a_min);
 }
+
+int get_num_threads(){
+    int num_threads = 0;
+    #pragma omp parallel
+    {
+        #pragma omp single
+        num_threads =  omp_get_num_threads();
+    }
+    return num_threads;
+}

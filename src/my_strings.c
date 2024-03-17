@@ -90,7 +90,7 @@ int to_int(char* c){
         c++;
     }
     int len = strlen(c);
-    for(int i = 0; c[i] != '\0'; c++){
+    for(int i = 0; c[i] != '\0'; i++){
         current_digit = c[i] - '0';
         final += current_digit * int_pow(10, len - (i + 1));
     }

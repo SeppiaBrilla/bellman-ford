@@ -16,25 +16,23 @@ void find_distances(graph* graph, int* distance, int* predecessor){
     for(int steps = 0; steps < graph->nodes.size - 1; steps ++){
 
         total_changes = 0;
-        #pragma omp parallel for
         for(int i = 0; i < graph->nodes.size; i++){
             changes[i] = 0;
         }
 
-        #pragma omp parallel for 
+        #pragma omp parallel for collapse(2)
         for(int i = 0; i < graph->edges.shape.values[0]; i ++){
             for(int j = 0; j < graph->edges.shape.values[1]; j++){
                 int edge = graph->edges.values[i][j];
                 int change_distance = (distance[i] + edge < distance[j] && edge != 0);
-
                 distance[j] = ((distance[i] + edge) * change_distance) + (distance[j] * !change_distance);
                 changes[i] += change_distance;
                 predecessor[j] = (i * change_distance) + (predecessor[j] * !change_distance);
             }
         }
-        #pragma omp barrier
-        #pragma omp parallel for reduction(|:total_changes)
-        for(int i = 0; i > graph->nodes.size; i++){
+        #pragma omp barrier 
+        #pragma omp parallel reduction(+:total_changes)
+        for(int i = 0; i < graph->nodes.size; i++){
             total_changes += changes[i];
         }
 
@@ -46,12 +44,27 @@ void find_distances(graph* graph, int* distance, int* predecessor){
 }
 
 int find_negative_cycles(graph* graph, int* distance, int source){
-    int negative_cycle = 0;
+    int *negative_cycles = malloc(sizeof(int) * graph->nodes.size);
+
+    #pragma omp parallel for 
+    for (int i =0; i < graph->nodes.size; i ++) {
+        negative_cycles[i] = 0;
+    }
+    #pragma omp parallel for collapse(2)
     for(int i = 0; i < graph->edges.shape.values[0]; i ++){
         for(int j = 0; j < graph->edges.shape.values[1]; j++){
             int edge = graph->edges.values[i][j];
-            negative_cycle += distance[i] + edge < distance[j] && i != source && edge != 0;
+            if(edge != 0 && i != source && distance[i] + edge < distance[j]){
+                negative_cycles[j] = 1;
+            }
         }
+    }
+
+    int negative_cycle = 0;
+
+    #pragma omp parallel reduction(+:negative_cycle)
+    for(int i = 0; i < graph->nodes.size; i++){
+        negative_cycle += negative_cycles[i];
     }
     return negative_cycle;
 }

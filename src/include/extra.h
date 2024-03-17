@@ -16,4 +16,6 @@ int max(int a, int b);
 
 int min(int a, int b);
 
+int get_num_threads();
+
 #endif // !_EXTRA_

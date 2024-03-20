@@ -22,7 +22,12 @@ def load_graph(graph_file:str) -> np.ndarray:
     return out
 
 def check_negative_cycles(g:np.ndarray):
-    G = nx.from_numpy_array(g)
+    G = nx.Graph()
+    rows, cols = g.shape
+    for i in range(rows):
+        for j in range(cols):
+            if g[i,j] != 0:
+                G.add_edge(i, j, weight=g[i,j])
     try:
         nx.bellman_ford_predecessor_and_distance(G, 0)
         return False
@@ -43,7 +48,6 @@ def check_distances(distances:list[int], predecessors:list[int], graph:np.ndarra
             next = prev
             prev = predecessors[prev]
         if dist != computed_dist:
-            print(dist, computed_dist, distances, predecessors, i)
             return False
     return True
     
@@ -100,7 +104,6 @@ def check(runs:dict) -> dict:
     for instance in checked_runs.keys():
         instance_runs = checked_runs[instance]
         graph = load_graph(instance)
-        print(graph)
         has_negative_cycle = check_negative_cycles(graph)
         for run in instance_runs:
             run["correct"] = True

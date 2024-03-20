@@ -1,6 +1,7 @@
 #include "data.h"
 #include "extra.h"
 #include <stdlib.h>
+#include <string.h>
 #include <omp.h>
 
 #ifndef _BELLMAN_

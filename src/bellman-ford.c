@@ -1,4 +1,5 @@
 #include "include/bellman-ford.h"
+#include <stdio.h>
 #include <stdlib.h>
 
 void initialize(int* distance, int* predecessor, int INFINITE, int size, int source){
@@ -25,11 +26,10 @@ void find_distances(graph* graph, int* distance, int* predecessor){
                 int edge = graph->edges.values[i][j];
                 int change_distance = (distance[i] + edge < distance[j] && edge != 0);
                 distance[j] = ((distance[i] + edge) * change_distance) + (distance[j] * !change_distance);
-                changes[i] += change_distance;
+                changes[j] += change_distance;
                 predecessor[j] = (i * change_distance) + (predecessor[j] * !change_distance);
             }
         }
-
         #pragma omp parallel reduction(+:total_changes)
         for(int i = 0; i < graph->nodes.size; i++){
             total_changes += changes[i];

@@ -21,18 +21,23 @@ def load_graph(graph_file:str) -> np.ndarray:
                 out[i, j] = int(val)
     return out
 
-def check_negative_cycles(g:np.ndarray):
-    G = nx.Graph()
-    rows, cols = g.shape
-    for i in range(rows):
-        for j in range(cols):
-            if g[i,j] != 0:
-                G.add_edge(i, j, weight=g[i,j])
-    try:
-        nx.bellman_ford_predecessor_and_distance(G, 0)
-        return False
-    except nx.NetworkXUnbounded:
-        return True
+def check_negative_cycles(graph:np.ndarray):
+    num_vertices = graph.shape[0]
+    distances = [float('inf')] * num_vertices
+    distances[0] = 0
+
+    for _ in range(num_vertices - 1):
+        for u in range(num_vertices):
+            for v in range(num_vertices):
+                if graph[u][v] != 0 and distances[u] + graph[u][v] < distances[v]:
+                    distances[v] = distances[u] + graph[u][v]
+
+    for u in range(num_vertices):
+        for v in range(num_vertices):
+            if graph[u][v] != 0 and distances[u] + graph[u][v] < distances[v]:
+                return True
+
+    return False
 
 def check_distances(distances:list[int], predecessors:list[int], graph:np.ndarray):
     source = 0
@@ -110,7 +115,9 @@ def check(runs:dict) -> dict:
             neg = bool(run["negative_cycles"])
             if not neg == has_negative_cycle:
                 run["correct"] = False
+                print("false negative cycle value")
             if not check_distances(run["distances"], run["predecessors"], graph):
+                print("cost values not correct")
                 run["correct"] = False
     return checked_runs
 
@@ -160,7 +167,10 @@ Flags:
     modes = {"load":lambda **args: load(args["params"]), "compute":lambda **args:compute(args["params"], args["range"])}
     runs = modes[mode](**args)
     runs = organise(runs)
-    pprint(check(runs))
+    runs = check(runs)
+    out = [(run["cores"], run["execution_time"], run["correct"]) for run in runs[args["params"]]]
+    for o in out:
+        print(o)
 
 if __name__ == "__main__":
     main()

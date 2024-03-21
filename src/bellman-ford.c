@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 void initialize(int* distance, int* predecessor, int INFINITE, int size, int source){
+    #pragma omp parallel for
     for(int i = 0; i < size; i ++){
         distance[i] = INFINITE;
         predecessor[i] = -1;
@@ -18,8 +19,8 @@ void find_distances(graph* graph, int* distance, int* predecessor){
         total_changes = 0;
         memset(changes, 0, sizeof(int) * graph->nodes.size);
 
-        #pragma omp parallel for collapse(2)
         for(int i = 0; i < graph->edges.shape.values[0]; i ++){
+            #pragma omp parallel for 
             for(int j = 0; j < graph->edges.shape.values[1]; j++){
                 int edge = graph->edges.values[i][j];
                 int change_distance = (distance[i] + edge < distance[j] && edge != 0);
@@ -29,7 +30,6 @@ void find_distances(graph* graph, int* distance, int* predecessor){
             }
         }
 
-        #pragma omp barrier 
         #pragma omp parallel reduction(+:total_changes)
         for(int i = 0; i < graph->nodes.size; i++){
             total_changes += changes[i];

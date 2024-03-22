@@ -24,7 +24,7 @@ void find_distances(graph* graph, int* distance, int* predecessor){
             #pragma omp parallel for 
             for(int j = 0; j < graph->edges.shape.values[1]; j++){
                 int edge = graph->edges.values[i][j];
-                int change_distance = (distance[i] + edge < distance[j] && edge != 0);
+                int change_distance = ( edge != 0 && distance[i] + edge < distance[j]);
                 distance[j] = ((distance[i] + edge) * change_distance) + (distance[j] * !change_distance);
                 changes[j] += change_distance;
                 predecessor[j] = (i * change_distance) + (predecessor[j] * !change_distance);

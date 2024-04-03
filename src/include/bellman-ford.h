@@ -1,5 +1,6 @@
 #include "data.h"
 #include "extra.h"
+#include "lists.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -14,6 +15,7 @@ typedef struct bf_retrurn{
     float time;
 } bellman_ford_return;
 
-bellman_ford_return* shortest_paths(graph* graph, int source);
+bellman_ford_return* find_distances_iterate_over_nodes(graph* graph, int source);
+bellman_ford_return* find_distances_iterate_over_edges(graph* graph, int source);
 
 #endif // !_BELLMAN_

@@ -22,8 +22,11 @@ typedef struct graph{
     string_array nodes;
     int_matrix2d edges;
 } graph;
-
-typedef int_array path;
+typedef struct edge{
+    int source;
+    int destination;
+    int weight;
+} edge;
 
 typedef struct list_element{
     struct list_element* next;

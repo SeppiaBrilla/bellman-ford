@@ -4,42 +4,48 @@ import networkx as nx
 import numpy as np
 import random
 
-def get_edge(num_nodes):
+LOWER_BOUND, UPPER_BOUND = -50, 1000
+
+def add_random_edge(G, num_nodes, edges):
+
     source = random.randint(0, num_nodes - 1)
-
     target = random.randint(0, num_nodes - 1)
-    while target == source:
+    while (source, target) in edges:
+        source = random.randint(0, num_nodes - 1)
+
         target = random.randint(0, num_nodes - 1)
+        while target == source:
+            target = random.randint(0, num_nodes - 1)
 
-    return (source, target)
 
-def create_graph(num_nodes, num_edges):
+    
+    weight = random.randint(LOWER_BOUND, UPPER_BOUND)  
+    while weight == 0:
+        weight = random.randint(LOWER_BOUND, UPPER_BOUND)
+
+    G.add_edge(source, target, weight=weight)
+    return source, target
+
+def has_negative_cycle(G):
+    try:
+        nx.bellman_ford_predecessor_and_distance(G, 0)
+        return False  
+    except nx.NetworkXUnbounded:
+        return True   
+
+def generate_graph(num_nodes, num_edges):
     G = nx.DiGraph()
-    edges = []   
     for i in range(num_nodes):
         G.add_node(i)
-    for k in range(num_edges):
-        
-        source, target = get_edge(num_nodes)
-        while (source, target) in edges:
-            source, target = get_edge(num_nodes)
-        edges.append((source, target))
-
-        weight = random.randint(-10, 1001)  
-        while weight == 0:
-            weight = random.randint(-10,1001)
-        print(f"generating edge {k+1}/{num_edges}", end='\r')
-        G.add_edge(source, target, weight=weight)
-        
+    edges = []
+    for e in range(num_edges):
+        source, target = add_random_edge(G, num_nodes, edges)
+        if has_negative_cycle(G):
+            G.remove_edge(source, target) 
+        else:
+            print(f"generated edge {e}/{num_edges}", end='\r')
+            edges.append((source, target))
     return G
-
-def has_negative_cycle(G:nx.DiGraph):
-    try:
-        print("checking for presence of negative cycle", end='\r')
-        nx.bellman_ford_predecessor_and_distance(G, 0)
-        return False
-    except nx.NetworkXUnbounded:
-        return True
 
 def count_elements_in_folder(folder_path):
     count = 0
@@ -63,12 +69,7 @@ def main(n_nodes:int, n_edges:int):
         return
     nodes = [f"node_{n}" for n in range(n_nodes)]
 
-    graph = create_graph(n_nodes, n_edges)
-    while has_negative_cycle(graph):
-        print("the graph has negative cycles, regenerating it", end='\r')
-        del graph
-        graph = create_graph(n_nodes, n_edges)
-
+    graph = generate_graph(n_nodes, n_edges)
     n = count_elements_in_folder("graphs/")
     edges = graph_to_matrix(graph)
 
@@ -87,10 +88,11 @@ def main(n_nodes:int, n_edges:int):
 
 if __name__ == "__main__":
     if len(sys.argv) == 2 and sys.argv[1] == "auto":
-        for n_nodes, n_edges in [(10, 70), (20,300), (30,800), (40,1400), (50,2000)]:
+        for n_nodes, n_edges in [(500, 200000)]:  
             print(f"generating graph with {n_nodes} nodes and {n_edges} edges")
             main(n_nodes, n_edges)
             print()
+            print("graph generated")
 
     elif len(sys.argv) < 3:
         print("error. not enough parameters. Usage: python graph_creator.py n_nodes n_edges")
@@ -99,5 +101,3 @@ if __name__ == "__main__":
         n_nodes = int(sys.argv[1])
         n_edges = int(sys.argv[2])
         main(n_nodes, n_edges)
-
-    

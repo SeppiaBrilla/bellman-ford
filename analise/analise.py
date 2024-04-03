@@ -1,10 +1,8 @@
 from sys import argv
 import subprocess
-import networkx as nx
 import os 
 import json
 import numpy as np
-from devtools import pprint
 
 def load_graph(graph_file:str) -> np.ndarray:
     f = open(graph_file)

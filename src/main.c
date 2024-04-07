@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include "include/graph.h"
 #include "include/bellman-ford.h"
 #include "include/extra.h"
@@ -18,11 +17,6 @@ int main(int argc, char** argv){
     const char* out_string = "\{\n\"distances\":%s,\n\"predecessors\":%s,\n\"negative_cycles\":%d,\n\"execution_time\":%f,\n\"input_file\":\"%s\",\n\"cores\":%d\n}";
     printf(out_string, distances, predecessors, result->negative_cycles, result->time, argv[1], get_num_threads());
     printf("\n");
-
-    free(g);
-    free(distances);
-    free(result);
-    free(predecessors);
 
     return 0;
 }

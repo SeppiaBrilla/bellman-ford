@@ -54,6 +54,8 @@ graph* load_from_file(char* file_name){
     edge_matrix.shape = matrix_shape;
     edge_matrix.values = edges;
     graph* g = malloc(sizeof(graph));
+    free(characters);
+    free(lines);
     g->nodes = *nodes;
     g->edges = edge_matrix;
     return g;

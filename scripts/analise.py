@@ -1,5 +1,6 @@
 from sys import argv
 import subprocess
+from typing import Any
 import os 
 import json
 import numpy as np
@@ -69,7 +70,7 @@ def load(param:str)-> list[dict]:
         return elements
     return []
 
-def compute(param:str, compute_range:str) -> list[dict]:
+def compute(param:str, implementation: str, compute_range:str) -> list[dict]:
     params = []
     if os.path.isfile(param):
         params =  [param]
@@ -87,10 +88,9 @@ def compute(param:str, compute_range:str) -> list[dict]:
     results = []
     for param in params:
         for num_threads in process_range:
-            command = ["output/bellman-ford", param]
+            command = [f"{implementation}/output/bellman-ford", param]
             result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=dict(os.environ, OMP_NUM_THREADS=str(num_threads)))
             results.append(json.loads(result.stdout))
-
     return results
 
 def organise(runs: list[dict]) -> dict:
@@ -109,17 +109,27 @@ def check(runs:dict) -> dict:
         graph = load_graph(instance)
         has_negative_cycle = check_negative_cycles(graph)
         for run in instance_runs:
-            run["correct"] = True
-            neg = bool(run["negative_cycles"])
+            run["correct"] = run["nodes"]["negative_cycles"] == run["edges"]["negative_cycles"]
+            if not run["correct"]:
+                run["reason"] = "negative cycles results are different"
+            else:
+                run["reason"] = ""
+            neg = bool(run["nodes"]["negative_cycles"])
             if not neg == has_negative_cycle:
                 run["correct"] = False
-                print("false negative cycle value")
-            if not check_distances(run["distances"], run["predecessors"], graph):
-                print("cost values not correct")
+                run["reason"] += " false negative cycle value"
+            if not check_distances(run["nodes"]["distances"], run["nodes"]["predecessors"], graph):
+                run["reason"] += " cost values not correct (nodes version)"
                 run["correct"] = False
+            if not check_distances(run["edges"]["distances"], run["edges"]["predecessors"], graph):
+                run["reason"] += " cost values not correct (edges version)"
+                run["correct"] = False
+
+            run["edges"]["total_execution_time"] = run["edges"]["inf_time"] + run["edges"]["init_time"] + run["edges"]["relaxation_time"] + run["edges"]["negative_cycles_time"]
+            run["nodes"]["total_execution_time"] = run["nodes"]["inf_time"] + run["nodes"]["init_time"] + run["nodes"]["relaxation_time"] + run["nodes"]["negative_cycles_time"]
     return checked_runs
 
-def load_args(argv:list[str]) -> dict[str,str]:
+def load_args(argv:list[str]) -> dict[str,Any]:
     args = {
         "verbose":False,
         "mode": argv[1]
@@ -128,9 +138,10 @@ def load_args(argv:list[str]) -> dict[str,str]:
         args["params"] = argv[2]
         argv = argv[3:]
     elif argv[1] == "compute":
-        args["params"] = argv[2]
-        args["range"] = argv[3]
-        argv = argv[4:]
+        args["implementation"] = argv[2]
+        args["params"] = argv[3]
+        args["range"] = argv[4]
+        argv = argv[5:]
     else:
         raise Exception(f"Unrecognised mode {argv[1]}")
     for arg in argv:
@@ -142,6 +153,10 @@ def load_args(argv:list[str]) -> dict[str,str]:
             args["plots"] = arg.replace("--makePlots=", "")
     
     return args
+def print_and_summary(summary:str, message:str, verbose=False)-> str:
+    if verbose:
+        print(message)
+    return summary + "\n" + message
 
 def main():
     if len(argv) < 2:
@@ -152,8 +167,9 @@ def main():
 Modes:
     load    load a file/folder.
         Usage: {argv[0]} load file-folder [flags]
-    compute call the program output/bellman-ford on a given instance file/folder and with a given range of cores.
-        Usage: {argv[0]} compute file/folder range(e.g. 1-8 or 6) [flags]
+    compute call the program bellman-ford on a given instance file/folder and with a given range of cores. 
+            The implementation argument determines the bellman-ford implementation to use (omp/cuda).
+        Usage: {argv[0]} compute implementation file/folder range(e.g. 1-8 or 6) [flags]
 Flags:
     --verbose   print the output to the stdout
     --save      save the output to a given file. Usage: {argv[0]} mode --save=fileName
@@ -162,13 +178,34 @@ Flags:
         return
     args = load_args(argv)
     mode = args["mode"]
-    modes = {"load":lambda **args: load(args["params"]), "compute":lambda **args:compute(args["params"], args["range"])}
+    verbose = args["verbose"]
+    modes = {"load":lambda **args: load(args["params"]), "compute":lambda **args:compute(args["params"], args["implementation"], args["range"])}
     runs = modes[mode](**args)
     runs = organise(runs)
     runs = check(runs)
-    out = [(run["cores"], run["execution_time"], run["correct"]) for run in runs[args["params"]]]
-    for o in out:
-        print(o)
+    correct = True
+    summary = ""
+    for input_file in runs.keys():
+        for run in runs[input_file]:
+            correct &= run["correct"]
+    if correct:
+        summary = print_and_summary(summary, "all solution are correct", verbose)
+    else:
+        summary = print_and_summary(summary, "there is at least one error", verbose)
+    title="""
+## Runs summary:
+    """
+    summary = print_and_summary(summary, title, verbose)
+    for input_file in runs.keys():
+        summary = print_and_summary(summary, f"### graph: {input_file}", verbose)
+        for run in runs[input_file]:
+            edge_time = round(run["edges"]["total_execution_time"],3)
+            node_time = round(run["nodes"]["total_execution_time"],3)
+            cores = run["cores"]
+            message = f"\t- number of cores: {cores} edge time: {edge_time} node time: {node_time}"
+            if not run["correct"]:
+                message += f" the solution is wrong due to the following reason: {run['reason']}"
+            summary = print_and_summary(summary, message, verbose)
 
 if __name__ == "__main__":
     main()

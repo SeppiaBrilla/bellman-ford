@@ -1,4 +1,5 @@
 #include "include/bellman-ford.h"
+#include <omp.h>
 #include <stdio.h>
 
 void initialize(int* distance, int* predecessor, int INFINITE, int size, int source){
@@ -150,22 +151,28 @@ int find_negative_cycles_edges(edge_array* edges, int* distance, int source, int
 
 
 bellman_ford_return* find_distances_iterate_over_nodes(graph* graph, int source){
-    double t_start, t_stop;
+    double t_start;
 
     int* distance = (int*)malloc(sizeof(int)* graph->nodes.size);
     int* predecessor = (int*)malloc(sizeof(int)* graph->nodes.size);
     int threads = get_num_threads();
 
     t_start = omp_get_wtime();
-
     const int INFINITE = find_infinite(&graph->edges);
+    float inf_time = omp_get_wtime() - t_start;
 
+    t_start = omp_get_wtime();
     initialize(distance, predecessor, INFINITE, graph->nodes.size, source);
+    float init_time = omp_get_wtime() - t_start;
 
+    t_start = omp_get_wtime();
     find_distances_nodes(graph, distance, predecessor, threads);
+    float rel_time = omp_get_wtime() - t_start;
+    
+    t_start = omp_get_wtime();
     int negative_cycles = find_negative_cycles_nodes(graph, distance, source, threads);
+    float neg_time = omp_get_wtime() - t_start;
 
-    t_stop = omp_get_wtime();
 
     bellman_ford_return* return_value = (bellman_ford_return*)malloc(sizeof(bellman_ford_return));
 
@@ -180,7 +187,10 @@ bellman_ford_return* find_distances_iterate_over_nodes(graph* graph, int source)
     return_value->distances = distances;
     return_value->predecessors = predecessors;
     return_value->negative_cycles = min(1, negative_cycles);
-    return_value->time = t_stop - t_start;
+    return_value->infinite_time = inf_time;
+    return_value->init_time = init_time;
+    return_value->relaxation_time = rel_time;
+    return_value->negative_cycle_time = neg_time;
 
     return  return_value;
 }
@@ -218,23 +228,31 @@ edge_array* get_edges(graph* graph){
 }
 
 bellman_ford_return* find_distances_iterate_over_edges(graph* graph, int source){
-    double t_start, t_stop;
+    double t_start;
 
     int* distance = (int*)malloc(sizeof(int)* graph->nodes.size);
     int* predecessor = (int*)malloc(sizeof(int)* graph->nodes.size);
     int threads = get_num_threads();
-    t_start = omp_get_wtime();
 
     edge_array* edges = get_edges(graph);
     int n_nodes = graph->nodes.size;
 
 
+    t_start = omp_get_wtime();
     const int INFINITE = find_infinite(&graph->edges);
-
+    float inf_time = omp_get_wtime() - t_start;
+    
+    t_start = omp_get_wtime();
     initialize(distance, predecessor, INFINITE, n_nodes, source);
+    float init_time = omp_get_wtime() - t_start;
+
+    t_start = omp_get_wtime();
     find_distances_edges(edges, distance, predecessor, n_nodes - 1, threads);
+    float rel_time = omp_get_wtime() - t_start;
+
+    t_start = omp_get_wtime();
     int negative_cycles = find_negative_cycles_edges(edges, distance, source, threads);
-    t_stop = omp_get_wtime();
+    float neg_time = omp_get_wtime() - t_start;
 
     bellman_ford_return* return_value = (bellman_ford_return*)malloc(sizeof(bellman_ford_return));
 
@@ -249,8 +267,10 @@ bellman_ford_return* find_distances_iterate_over_edges(graph* graph, int source)
     return_value->distances = distances;
     return_value->predecessors = predecessors;
     return_value->negative_cycles = min(1, negative_cycles);
-    return_value->time = t_stop - t_start;
+    return_value->init_time = init_time;
+    return_value->infinite_time = inf_time;
+    return_value->relaxation_time = rel_time;
+    return_value->negative_cycle_time = neg_time;
 
-    free(graph);
     return  return_value;
 }

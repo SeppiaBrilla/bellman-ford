@@ -12,7 +12,10 @@ typedef struct bf_retrurn{
     int_array distances;
     int_array predecessors;
     int negative_cycles;
-    float time;
+    float infinite_time;
+    float init_time;
+    float relaxation_time;
+    float negative_cycle_time;
 } bellman_ford_return;
 
 bellman_ford_return* find_distances_iterate_over_nodes(graph* graph, int source);

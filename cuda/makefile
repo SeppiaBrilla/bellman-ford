@@ -11,7 +11,7 @@ TARGET = $(OUTDIR)/bellman-ford
 
 $(TARGET): $(OBJS)
 	@mkdir -p $(OUTDIR)
-	$(CC) $^ -o $@
+	$(CC) -Xcompiler -fopenmp $^ -o $@
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cu
 	@mkdir -p $(OBJDIR)

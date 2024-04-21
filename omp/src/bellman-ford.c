@@ -149,7 +149,6 @@ int find_negative_cycles_edges(edge_array* edges, int* distance, int source, int
     return negative_cycle;
 }
 
-
 bellman_ford_return* find_distances_iterate_over_nodes(graph* graph, int source){
     double t_start;
 

@@ -1,10 +1,12 @@
 #include "include/graph.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 graph* load_from_file(char* file_name){
     FILE* file;
     file = fopen(file_name,"r");
     if(NULL == file){
-        perror(str_concat("cannot open file ", file_name));
+        perror(str_concat((char*)"cannot open file ", file_name));
         exit(EXIT_FAILURE);
     }
  
@@ -33,9 +35,9 @@ graph* load_from_file(char* file_name){
     string_array* lines = split(characters, '\n');
     string_array* nodes = split(lines->values[0], ',');
 
-    int** edges = malloc(sizeof(int*) * nodes->size);
+    int** edges = (int**)malloc(sizeof(int*) * nodes->size);
     for(int i = 1; i < lines->size; i++){
-        int* ints = malloc(sizeof(int) * nodes->size);
+        int* ints = (int*)malloc(sizeof(int) * nodes->size);
         string_array* current_edeges_str = split(lines->values[i], ',');
         for(int j = 0; j < current_edeges_str->size; j++){
             ints[j] = to_int(current_edeges_str->values[j]);
@@ -45,13 +47,13 @@ graph* load_from_file(char* file_name){
     int_matrix2d edge_matrix;
     tuple matrix_shape;
     matrix_shape.size = 2;
-    int* values = malloc(sizeof(int) * 2);
+    int* values = (int*)malloc(sizeof(int) * 2);
     values[0] = nodes->size;
     values[1] = nodes->size;
     matrix_shape.values = values;
     edge_matrix.shape = matrix_shape;
     edge_matrix.values = edges;
-    graph* g = malloc(sizeof(graph));
+    graph* g = (graph*)malloc(sizeof(graph));
     free(characters);
     free(lines);
     g->nodes = *nodes;

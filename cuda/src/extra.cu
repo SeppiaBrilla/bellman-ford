@@ -40,10 +40,11 @@ int mmin(int a, int b){
 
 __global__ void Max_Sequential_Addressing_Shared(int* data, int data_size){
     int idx = blockDim.x * blockIdx.x + threadIdx.x;
-    __shared__ float sdata[1024];
+    extern __shared__ float sdata[];
+    if(sdata[threadIdx.x] != 0)
+        sdata[threadIdx.x] = 0;
+    __syncthreads();
     if (idx < data_size){
-
-        /*copy to shared memory*/
         sdata[threadIdx.x] = data[idx];
         __syncthreads();
 
@@ -65,7 +66,7 @@ int find_infinite(int* matrix, int N){
     int* d_matrix;
     cudaMalloc((void**) &d_matrix, sizeof(int)* N);
     cudaMemcpy(d_matrix, matrix, sizeof(int) * N, cudaMemcpyDeviceToDevice);
-    Max_Sequential_Addressing_Shared<<<512,1024>>>(d_matrix, N);
+    Max_Sequential_Addressing_Shared<<<512,1024, 1024 * sizeof(int)>>>(d_matrix, N);
     cudaDeviceSynchronize();
     cudaMemcpy(result_ptr, d_matrix, sizeof(int) * N, cudaMemcpyDeviceToHost);
     cudaFree(d_matrix);

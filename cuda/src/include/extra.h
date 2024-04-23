@@ -17,4 +17,6 @@ int mmax(int a, int b);
 
 int mmin(int a, int b);
 
+__global__ void Max_Sequential_Addressing_Shared(int* data, int data_size);
+
 #endif // !_EXTRA_

@@ -140,8 +140,12 @@ def load_args(argv:list[str]) -> dict[str,Any]:
     elif argv[1] == "compute":
         args["implementation"] = argv[2]
         args["params"] = argv[3]
-        args["range"] = argv[4]
-        argv = argv[5:]
+        if args["implementation"] == "omp":
+            args["range"] = argv[4]
+            argv = argv[5:]
+        elif args["implementation"] == "cuda":
+            argv = argv[4:]
+            args["range"] = "1"
     else:
         raise Exception(f"Unrecognised mode {argv[1]}")
     for arg in argv:
@@ -169,7 +173,7 @@ Modes:
         Usage: {argv[0]} load file-folder [flags]
     compute call the program bellman-ford on a given instance file/folder and with a given range of cores. 
             The implementation argument determines the bellman-ford implementation to use (omp/cuda).
-        Usage: {argv[0]} compute implementation file/folder range(e.g. 1-8 or 6) [flags]
+        Usage: {argv[0]} compute implementation file/folder range(e.g. 1-8 or 6. Only for omp version) [flags]
 Flags:
     --verbose   print the output to the stdout
     --save      save the output to a given file. Usage: {argv[0]} mode --save=fileName
@@ -201,8 +205,8 @@ Flags:
         for run in runs[input_file]:
             edge_time = round(run["edges"]["total_execution_time"],3)
             node_time = round(run["nodes"]["total_execution_time"],3)
-            cores = run["cores"]
-            message = f"\t- number of cores: {cores} edge time: {edge_time} node time: {node_time}"
+            cores = run["cores"] if "cores" in run else None
+            message = f"\t- {'number of cores: ' + cores if cores != None else ''} edge time: {edge_time} node time: {node_time}"
             if not run["correct"]:
                 message += f" the solution is wrong due to the following reason: {run['reason']}"
             summary = print_and_summary(summary, message, verbose)

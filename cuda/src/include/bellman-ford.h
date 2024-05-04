@@ -21,6 +21,6 @@ typedef struct bf_retrurn{
 } bellman_ford_return;
 
 bellman_ford_return* find_distances_iterate_over_nodes(graph* graph, int source);
-// bellman_ford_return* find_distances_iterate_over_edges(graph* graph, int source);
+bellman_ford_return* find_distances_iterate_over_edges(graph* graph, int source);
 
 #endif // !_BELLMAN_

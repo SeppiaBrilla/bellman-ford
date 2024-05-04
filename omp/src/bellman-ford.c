@@ -1,6 +1,4 @@
 #include "include/bellman-ford.h"
-#include <omp.h>
-#include <stdio.h>
 
 void initialize(int* distance, int* predecessor, int INFINITE, int size, int source){
     #pragma omp parallel for

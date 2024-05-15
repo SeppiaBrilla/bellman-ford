@@ -49,8 +49,7 @@ void find_distances_nodes(graph* graph, int* distance, int* predecessor, int thr
 }
 
 void find_distances_edges(edge_array* edges, int* distance, int* predecessor, int max_steps, int threads){
-    if(edges->size == 0)
-        return;
+
     int* changes = (int*)malloc(sizeof(int) * threads);
     if(changes == NULL){
         printf("failed to allocate memory\n");
@@ -62,33 +61,29 @@ void find_distances_edges(edge_array* edges, int* distance, int* predecessor, in
         
         total_changes = 0;
         memset(changes, 0, sizeof(int) * threads);
-        #pragma omp parallel
-        {
-            int id = omp_get_thread_num();
-            #pragma omp for
-            for(int i = 0; i < edges->size; i ++){
-                edge current_edge = edges->values[i];
-                int change_distance = 0;
-                #pragma omp critical
-                {
-                    change_distance = (distance[current_edge.source] + current_edge.weight < distance[current_edge.destination]);
-                    int new_distance = ((distance[current_edge.source] + current_edge.weight) * change_distance) + (distance[current_edge.destination] * !change_distance);
-                    distance[current_edge.destination] = new_distance;
+        for(int i = 0; i < max_steps + 1; i ++){
+            #pragma omp parallel
+            {
+                int id = omp_get_thread_num();
+                #pragma omp for
+                for(int j = 0; j < edges[i].size; j++){
+                    edge edge = edges[i].values[j];
+                    int change_distance = (distance[edge.source] + edge.weight < distance[edge.destination]);
+                    distance[edge.destination] = ((distance[edge.source] + edge.weight) * change_distance) + (distance[edge.destination] * !change_distance);
+                    changes[id] += change_distance;
+                    predecessor[edge.destination] = (edge.source * change_distance) + (predecessor[edge.destination] * !change_distance);
                 }
-                changes[id] += change_distance;
-                predecessor[current_edge.destination] = (current_edge.source * change_distance) + (predecessor[current_edge.destination] * !change_distance);
             }
-
-            #pragma omp barrier
-            #pragma omp parallel for reduction(+:total_changes)
-            for(int i = 0; i < threads; i++){
-                total_changes += changes[i];
-            }
+        }
+        #pragma omp barrier
+        #pragma omp parallel for reduction(+:total_changes)
+        for(int i = 0; i < threads; i++){
+            total_changes += changes[i];
         }
         if(total_changes== 0){
-            free(changes);
-            return;
+            break;
         }
+
     }
     free(changes);
 }
@@ -121,7 +116,7 @@ int find_negative_cycles_nodes(graph* graph, int* distance, int source, int thre
     return negative_cycle;
 }
 
-int find_negative_cycles_edges(edge_array* edges, int* distance, int source, int threads){
+int find_negative_cycles_edges(edge_array* edges, int* distance, int n, int source, int threads){
     int *negative_cycles = malloc(sizeof(int) * threads);
 
     memset(negative_cycles, 0, sizeof(int) * threads);
@@ -129,10 +124,12 @@ int find_negative_cycles_edges(edge_array* edges, int* distance, int source, int
     #pragma omp parallel 
     {
         int id = omp_get_thread_num();
-        #pragma omp for 
-        for(int i = 0; i < edges->size; i ++){
-            edge edge = edges->values[i];
-            negative_cycles[id] = distance[edge.source] + edge.weight < distance[edge.destination];
+        for(int i = 0; i < n; i ++){
+            #pragma omp for
+            for(int j = 0; j < edges[i].size; j++){
+                edge edge = edges[i].values[j];
+                negative_cycles[id] = distance[edge.source] + edge.weight < distance[edge.destination];
+            }
         }
     }
 
@@ -194,34 +191,37 @@ bellman_ford_return* find_distances_iterate_over_nodes(graph* graph, int source)
 
 edge_array* get_edges(graph* graph){
 
-    int n_edges = 0;
+    int* n_edges = (int*)malloc(sizeof(int) * graph->nodes.size);
+    memset(n_edges, 0, sizeof(int) * graph->nodes.size);
 
     for(int i = 0; i < graph->nodes.size; i++){
         for(int j = 0; j < graph->nodes.size; j++){
-            n_edges += graph->edges.values[i][j] != 0;
+            n_edges[i] += graph->edges.values[i][j] != 0;
         }
     }
+    
+    int* current_edges = (int*)malloc(sizeof(int) * graph->nodes.size);
+    memset(current_edges, 0, sizeof(int) * graph->nodes.size);
 
-    int current_edge = 0;
-    edge* edges = malloc(sizeof(edge) * n_edges);
-    {
-        for(int i = 0; i < graph->nodes.size; i++){
-            for(int j = 0; j < graph->nodes.size; j++){
-                if(graph->edges.values[i][j] != 0){
-                    edge e;
-                    e.source = i;
-                    e.destination = j;
-                    e.weight = graph->edges.values[i][j];
-                    edges[current_edge] = e;
-                    current_edge ++;
-                }
+    edge_array* edges = (edge_array*)malloc(sizeof(edge_array) * graph->nodes.size);
+    for(int i = 0; i < graph->nodes.size; i++){
+        edges[i].values = (edge*)malloc(sizeof(edge) * n_edges[i]);
+        edges[i].size = n_edges[i];
+        for(int j = 0; j < graph->nodes.size; j++){
+            if(graph->edges.values[i][j] != 0){
+                edge e;
+                e.source = i;
+                e.destination = j;
+                e.weight = graph->edges.values[i][j];
+                edges[i].values[current_edges[i]] = e;
+                current_edges[i] ++;
             }
         }
     }
-    edge_array* edges_array = malloc(sizeof(edge_array));
-    edges_array->size = n_edges;
-    edges_array->values = edges;
-    return edges_array;
+    free(n_edges);
+    free(current_edges);
+    
+    return edges;
 }
 
 bellman_ford_return* find_distances_iterate_over_edges(graph* graph, int source){
@@ -248,7 +248,7 @@ bellman_ford_return* find_distances_iterate_over_edges(graph* graph, int source)
     float rel_time = omp_get_wtime() - t_start;
 
     t_start = omp_get_wtime();
-    int negative_cycles = find_negative_cycles_edges(edges, distance, source, threads);
+    int negative_cycles = find_negative_cycles_edges(edges, distance, graph->nodes.size, source, threads);
     float neg_time = omp_get_wtime() - t_start;
 
     bellman_ford_return* return_value = (bellman_ford_return*)malloc(sizeof(bellman_ford_return));

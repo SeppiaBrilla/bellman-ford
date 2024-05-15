@@ -1,4 +1,2 @@
-cuda/src/obj
-omp/src/obj
 *.o
 output

@@ -30,7 +30,7 @@ typedef struct edge{
 } edge;
 
 typedef struct edge_array{
-    int size;
+    int* size;
     edge* values;
 } edge_array;
 

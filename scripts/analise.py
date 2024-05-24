@@ -206,7 +206,7 @@ Flags:
             edge_time = round(run["edges"]["total_execution_time"],3)
             node_time = round(run["nodes"]["total_execution_time"],3)
             cores = run["cores"] if "cores" in run else None
-            message = f"\t- {'number of cores: ' + cores if cores != None else ''} edge time: {edge_time} node time: {node_time}"
+            message = f"\t- {'number of cores: ' + str(cores) if cores != None else ''} edge time: {edge_time} node time: {node_time}"
             if not run["correct"]:
                 message += f" the solution is wrong due to the following reason: {run['reason']}"
             summary = print_and_summary(summary, message, verbose)

@@ -60,13 +60,13 @@ __global__ void Max_Sequential_Addressing_Shared(int* data, int data_size){
     if (idx == 0) data[0] = sdata[0];
 }
 
-int find_infinite(int* matrix, int N){
+int find_infinite(int* matrix, int N, cudaStream_t stream){
     int* result_ptr = (int*)malloc(sizeof(int) * N);
 
     int* d_matrix;
     cudaMalloc((void**) &d_matrix, sizeof(int)* N);
     cudaMemcpy(d_matrix, matrix, sizeof(int) * N, cudaMemcpyDeviceToDevice);
-    Max_Sequential_Addressing_Shared<<<512,1024, 1024 * sizeof(int)>>>(d_matrix, N);
+    Max_Sequential_Addressing_Shared<<<512,1024, 1024 * sizeof(int), stream>>>(d_matrix, N);
     cudaDeviceSynchronize();
     cudaMemcpy(result_ptr, d_matrix, sizeof(int) * N, cudaMemcpyDeviceToHost);
     cudaFree(d_matrix);

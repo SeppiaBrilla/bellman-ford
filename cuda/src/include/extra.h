@@ -9,7 +9,7 @@
 
 int int_pow(int base, int exponent);
 
-int find_infinite(int* matrix, int N);
+int find_infinite(int* matrix, int N, cudaStream_t stream);
 
 char* array_to_json(int_array* arr);
 

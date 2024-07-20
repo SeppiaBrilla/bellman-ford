@@ -164,7 +164,7 @@ def print_and_summary(summary:str, message:str, verbose=False)-> str:
 
 def main():
     if len(argv) < 2:
-        print(f"Wrong usage.Use {argv[0]} --help if needed")
+        print(f"Wrong usage. Use {argv[0]} --help if needed")
         return
     if argv[1] == "--help":
         print(f"""Usage: {argv[0]} mode [flags]

@@ -8,6 +8,13 @@ int int_pow(int base, int exponent){
     return result;
 }
 
+void checkCudaErrors(cudaError_t err) {
+    if (err != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(err));
+        exit(err);
+    }
+}
+
 char* array_to_json(int_array* arr) {
     char *json_string = (char*)malloc(((arr->size * 8) + 2) * sizeof(char)); 
     if (json_string == NULL) {
@@ -67,9 +74,10 @@ int find_infinite(int* matrix, int N, cudaStream_t stream){
     cudaMalloc((void**) &d_matrix, sizeof(int)* N);
     cudaMemcpy(d_matrix, matrix, sizeof(int) * N, cudaMemcpyDeviceToDevice);
     Max_Sequential_Addressing_Shared<<<512,1024, 1024 * sizeof(int), stream>>>(d_matrix, N);
-    cudaDeviceSynchronize();
+    checkCudaErrors(cudaGetLastError());
     cudaMemcpy(result_ptr, d_matrix, sizeof(int) * N, cudaMemcpyDeviceToHost);
     cudaFree(d_matrix);
+    checkCudaErrors(cudaGetLastError());
     
     int result = result_ptr[0];
     free(result_ptr);

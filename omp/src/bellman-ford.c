@@ -164,7 +164,7 @@ edge_array* get_edges(graph* graph){
             n_edges[i] += graph->edges.values[i][j] != 0;
         }
     }
-    
+
     int* current_edges = (int*)malloc(sizeof(int) * graph->nodes.size);
     memset(current_edges, 0, sizeof(int) * graph->nodes.size);
 

@@ -1,22 +1,21 @@
 #include "include/bellman-ford.h"
 
-void checkCudaErrors(cudaError_t err) {
-    if (err != cudaSuccess) {
-        fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(err));
-        exit(err);
-    }
-}
-
 void unroll(int** matrix, int* vector, int N){
+    int* unrol_vector = (int*)malloc(N * N * sizeof(int));
     for(int i = 0; i < N; i++){
         for(int j = 0; j < N; j++){
-            cudaMemcpy(&vector[(i * N)], matrix[i], sizeof(int) * N, cudaMemcpyHostToDevice);
+            unrol_vector[(i * N) + j] = matrix[i][j];
         }
     }
+    cudaMemcpy(vector, unrol_vector, sizeof(int) * N * N, cudaMemcpyHostToDevice);
+    checkCudaErrors(cudaGetLastError());
+    free(unrol_vector);
 }
 
-__global__ void initialize(int* distance, int* predecessor, int INFINITE, int source){
-    int i = blockIdx.x;
+__global__ void initialize(int* distance, int* predecessor, int INFINITE, int source, int N){
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if(i >= N)
+        return;
     if (i != source)
         distance[i] = INFINITE;
     else
@@ -53,6 +52,7 @@ void find_distances_nodes(int* edges, int* distance, int* predecessor, int n){
         cudaMemset(d_changes, 0, size);
         bf_iter_nodes<<<512, 1024>>>(edges, distance, predecessor, d_changes, n);
         Max_Sequential_Addressing_Shared<<<512, 1024, 1024 * sizeof(int)>>>(d_changes, n);
+        checkCudaErrors(cudaGetLastError());
         cudaMemcpy(total_changes, d_changes, size, cudaMemcpyDeviceToHost);
 
         if(total_changes[0] == 0)
@@ -93,10 +93,9 @@ void find_distances_edges(edge* edges, int* starts, int* distance, int* predeces
 
     while(1){
         cudaMemset(d_changes, 0, sizeof(int));
+        bf_iter_edge<<<512,1024>>>(edges, starts, distance, predecessor, d_changes, n);
         checkCudaErrors(cudaGetLastError());
-        bf_iter_edge<<<n,n>>>(edges, starts, distance, predecessor, d_changes, n);
-        checkCudaErrors(cudaGetLastError());
-        checkCudaErrors(cudaMemcpy(total_changes, d_changes, sizeof(int), cudaMemcpyDeviceToHost));
+        cudaMemcpy(total_changes, d_changes, sizeof(int), cudaMemcpyDeviceToHost);
         if(total_changes[0] == 0)
             break;
         if(steps > n -1){
@@ -126,9 +125,11 @@ int find_negative_cycles_nodes(int* edges, int* distance, int source, unsigned i
     cudaMemset(d_negative_cycles, 0, sizeof(int) * N);
 
     check_negative_cycle<<<512,1024>>>(edges, source, distance, d_negative_cycles, N);
+    checkCudaErrors(cudaGetLastError());
     int negative_cycle = 0;
 
     Max_Sequential_Addressing_Shared<<<512,1024, 1024 * sizeof(int)>>>(d_negative_cycles, N);
+    checkCudaErrors(cudaGetLastError());
     cudaMemcpy(&negative_cycle, d_negative_cycles, sizeof(int), cudaMemcpyDeviceToHost);
     cudaFree(d_negative_cycles);
     return negative_cycle;
@@ -153,17 +154,16 @@ bellman_ford_return* find_distances_iterate_over_nodes(graph* graph, int source)
     cudaMalloc((void**)&d_edges, sizeof(int) * graph->nodes.size * graph->nodes.size);
 
     unroll(graph->edges.values, d_edges, graph->nodes.size);
-
+    checkCudaErrors(cudaGetLastError());
+    
     t_start = omp_get_wtime();
     const int INFINITE = find_infinite(d_edges, N * N, infinite_stream);
     float inf_time = omp_get_wtime() - t_start;
 
     t_start = omp_get_wtime();
-    initialize<<<N,1>>>(d_distance, d_predecessor, INFINITE, 0);
+    initialize<<<512, 1024>>>(d_distance, d_predecessor, INFINITE, 0, N);
+    checkCudaErrors(cudaGetLastError());
     float init_time = omp_get_wtime() - t_start;
-
-    cudaMemcpy(distance, d_distance, sizeof(int) * N, cudaMemcpyDeviceToHost);
-    cudaMemcpy(predecessor, d_predecessor, sizeof(int) * N, cudaMemcpyDeviceToHost);
 
     t_start = omp_get_wtime();
     find_distances_nodes(d_edges, d_distance, d_predecessor, N);
@@ -192,7 +192,7 @@ bellman_ford_return* find_distances_iterate_over_nodes(graph* graph, int source)
 
     return_value->distances = distances;
     return_value->predecessors = predecessors;
-    return_value->negative_cycles = mmin(1, 0);
+    return_value->negative_cycles = mmin(1, negative_cycles);
     return_value->infinite_time = inf_time;
     return_value->init_time = init_time;
     return_value->relaxation_time = rel_time;
@@ -260,15 +260,14 @@ bellman_ford_return* find_distances_iterate_over_edges(graph* graph, int source)
 
     t_start = omp_get_wtime();
     const int INFINITE = find_infinite(d_edge_matrix, N * N, infinite_stream);
-    checkCudaErrors(cudaGetLastError());
+
     float inf_time = omp_get_wtime() - t_start;
     t_start = omp_get_wtime();
-    initialize<<<N,1>>>(d_distance, d_predecessor, INFINITE, 0);
+    initialize<<<512, 1024>>>(d_distance, d_predecessor, INFINITE, 0, N);
+    checkCudaErrors(cudaGetLastError());
     float init_time = omp_get_wtime() - t_start;
 
-    checkCudaErrors(cudaGetLastError());
     cudaFreeAsync(d_edge_matrix, infinite_stream);
-    checkCudaErrors(cudaGetLastError());
 
     int *neg_cycle = (int*)malloc(sizeof(int));
     t_start = omp_get_wtime();

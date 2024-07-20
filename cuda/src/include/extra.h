@@ -7,6 +7,8 @@
 #ifndef _EXTRA_
 #define _EXTRA_
 
+void checkCudaErrors(cudaError_t err);
+
 int int_pow(int base, int exponent);
 
 int find_infinite(int* matrix, int N, cudaStream_t stream);

@@ -16,8 +16,6 @@ def add_random_edge(G, num_nodes, edges):
         target = random.randint(0, num_nodes - 1)
         while target == source:
             target = random.randint(0, num_nodes - 1)
-
-
     
     weight = random.randint(LOWER_BOUND, UPPER_BOUND)  
     while weight == 0:
@@ -33,19 +31,50 @@ def has_negative_cycle(G):
     except nx.NetworkXUnbounded:
         return True   
 
-def generate_graph(num_nodes, num_edges):
-    G = nx.DiGraph()
-    for i in range(num_nodes):
-        G.add_node(i)
-    edges = []
-    for e in range(num_edges):
-        source, target = add_random_edge(G, num_nodes, edges)
-        if has_negative_cycle(G):
-            G.remove_edge(source, target) 
-        else:
-            print(f"generated edge {e}/{num_edges}", end='\r')
-            edges.append((source, target))
-    return G
+def generate_graph(num_nodes, num_edges, allow_negative_cycle):
+
+        adiacent_matrix = np.random.uniform(low=LOWER_BOUND, high=UPPER_BOUND, size=(num_nodes, num_nodes))
+
+        for i in range(num_nodes):
+            adiacent_matrix[i,i] = 0
+        
+        G = nx.from_numpy_array(adiacent_matrix)
+
+        it = 0
+        if num_edges != "rand":
+            while len(G.edges) != num_edges:
+                idx = (0,0)
+                print(f"num edges: {len(G.edges)}/{num_edges}. it: {it}", end="\r")
+                if len(G.edges) > num_edges:
+                    while not G.has_edge(idx[0], idx[1]) or idx[0] == idx[1]:
+                        idx = (random.randint(0, num_nodes), random.randint(0, num_nodes))
+                    G.remove_edge(idx[0], idx[1])
+                elif len(G.edges) < num_edges:
+                    while G.has_edge(idx[0], idx[1]) or idx[0] == idx[1]:
+                        idx = (random.randint(0, num_nodes), random.randint(0, num_nodes))
+                    G.add_edge(idx[0], idx[1], weight=random.randint(LOWER_BOUND, UPPER_BOUND))
+                it += 1
+
+        if allow_negative_cycle:
+            return G
+        while has_negative_cycle(G):
+            for edge in G.edges():
+                if G.edges[edge]["weight"] < 0:
+                    n_negative = 0
+                    for neib in [(edge[0] - 1, edge[1] + 1), (edge[0], edge[1] + 1), (edge[0] + 1, edge[1] + 1),
+                                 (edge[0] - 1, edge[1]    ), (edge[0], edge[1]    ), (edge[0]    , edge[1] + 1),
+                                 (edge[0] - 1, edge[1] - 1), (edge[0], edge[1] - 1), (edge[0] - 1, edge[1] + 1)]:
+                        if G.has_edge(neib[0], neib[1]) and G.edges[neib]["weight"] < 0:
+                            n_negative += 1
+                    if n_negative < 1:
+                        mult = 1
+                    else:
+                        mult = -1
+                    w = mult * G.edges[edge]["weight"]
+                    G.remove_edge(edge[0], edge[1])
+                    G.add_edge(edge[0], edge[1], weight=w)
+
+        return G
 
 def count_elements_in_folder(folder_path):
     count = 0
@@ -63,13 +92,13 @@ def graph_to_matrix(G):
         matrix[source,target] = weight
     return matrix
 
-def main(n_nodes:int, n_edges:int):
-    if n_edges > (n_nodes **2) - n_nodes:
+def main(n_nodes:int, n_edges:int|str, negative_cycle:bool = False):
+    if type(n_edges) != str and n_edges > (n_nodes **2) - n_nodes:
         print("error. The number of edges should be less than n_nodes^2 - n_nodes")
         return
     nodes = [f"node_{n}" for n in range(n_nodes)]
 
-    graph = generate_graph(n_nodes, n_edges)
+    graph = generate_graph(n_nodes, n_edges, negative_cycle)
     n = count_elements_in_folder("graphs/")
     edges = graph_to_matrix(graph)
 
@@ -94,10 +123,14 @@ if __name__ == "__main__":
             print()
             print("graph generated")
 
-    elif len(sys.argv) < 3:
-        print("error. not enough parameters. Usage: python graph_creator.py n_nodes n_edges")
+    elif len(sys.argv) < 4:
+        print("error. not enough parameters. Usage: python graph_creator.py n_nodes n_edges negative_cycles")
 
     else:
         n_nodes = int(sys.argv[1])
-        n_edges = int(sys.argv[2])
-        main(n_nodes, n_edges)
+        if sys.argv[2] != "rand":
+            n_edges = int(sys.argv[2])
+        else:
+            n_edges = sys.argv[2]
+        negative_cycles = bool(sys.argv[3])
+        main(n_nodes, n_edges, negative_cycles)
